@@ -1,6 +1,7 @@
-from django.urls import path
-from .views import LoginView
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-    path('login/', LoginView.as_view(), name='login'),
+    path('admin/', admin.site.urls),
+    path('', include('api.urls')),  # connect api app
 ]
