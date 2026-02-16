@@ -15,12 +15,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-change-this")
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = [
-    "safe-guard-django-backend.onrender.com",
-    "localhost",
-    "127.0.0.1",
-]
-
+ALLOWED_HOSTS = ['*']
 
 # -----------------------------
 # APPLICATION DEFINITION
