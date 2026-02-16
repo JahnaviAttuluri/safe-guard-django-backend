@@ -3,6 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 
+from django.http import JsonResponse
+
+def register(request):
+    return JsonResponse({"message": "Register endpoint working"})
+def login(request):
+    return JsonResponse({"message": "Login endpoint working"})
 
 class LoginView(APIView):
     def post(self, request):
