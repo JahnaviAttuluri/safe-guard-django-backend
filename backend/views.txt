@@ -1,0 +1,31 @@
+import os
+import pickle
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+# Load model and vectorizer once
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+model_path = os.path.join(BASE_DIR, "backend", "model.pkl")
+vectorizer_path = os.path.join(BASE_DIR, "backend", "vectorizer.pkl")
+
+model = pickle.load(open(model_path, "rb"))
+vectorizer = pickle.load(open(vectorizer_path, "rb"))
+
+
+@csrf_exempt
+def predict_job(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+
+        text = data.get("text")
+
+        text_vectorized = vectorizer.transform([text])
+        prediction = model.predict(text_vectorized)[0]
+        probability = model.predict_proba(text_vectorized)[0][1]
+
+        return JsonResponse({
+            "prediction": int(prediction),
+            "confidence": float(probability)
+        })

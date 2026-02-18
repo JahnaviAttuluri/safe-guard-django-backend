@@ -11,11 +11,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # -----------------------------
 # SECURITY SETTINGS
 # -----------------------------
-SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-change-this")
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    "your-render-url.onrender.com",  # replace with real Render URL
+]
+
 
 # -----------------------------
 # APPLICATION DEFINITION
@@ -36,7 +39,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # Must be at top
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -49,27 +52,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "backend.urls"
 
-TEMPLATES = [
-    {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-            ],
-        },
-    },
-]
-
 WSGI_APPLICATION = "backend.wsgi.application"
 
 
 # -----------------------------
-# DATABASE (PostgreSQL)
+# DATABASE (Supabase PostgreSQL)
 # -----------------------------
 DATABASES = {
     "default": dj_database_url.config(
@@ -84,18 +71,10 @@ DATABASES = {
 # PASSWORD VALIDATION
 # -----------------------------
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 
@@ -103,15 +82,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # INTERNATIONALIZATION
 # -----------------------------
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
 USE_TZ = True
 
 
 # -----------------------------
-# STATIC FILES (Render ready)
+# STATIC FILES (Render Ready)
 # -----------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
@@ -126,6 +103,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # -----------------------------
-# CORS SETTINGS (React frontend)
+# CORS SETTINGS (React Frontend)
 # -----------------------------
 CORS_ALLOW_ALL_ORIGINS = True

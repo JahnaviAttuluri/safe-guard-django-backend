@@ -1,48 +1,63 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import authenticate
+import os
+import pickle
+import json
 
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
+# Get current directory (api folder)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load trained model and vectorizer
+model_path = os.path.join(BASE_DIR, "model.pkl")
+vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
+
+model = pickle.load(open(model_path, "rb"))
+vectorizer = pickle.load(open(vectorizer_path, "rb"))
+
+
+# ---------------------------
+# Dummy Register Endpoint
+# ---------------------------
+@csrf_exempt
 def register(request):
     return JsonResponse({"message": "Register endpoint working"})
+
+
+# ---------------------------
+# Dummy Login Endpoint
+# ---------------------------
+@csrf_exempt
 def login(request):
     return JsonResponse({"message": "Login endpoint working"})
 
-class LoginView(APIView):
-    def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
 
-        if not email or not password:
-            return Response(
-                {"error": "Email and password required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        user = authenticate(username=email, password=password)
-
-        if user is not None:
-            return Response(
-                {
-                    "message": "Login successful",
-                    "username": user.username
-                },
-                status=status.HTTP_200_OK
-            )
-        else:
-            return Response(
-                {"error": "Invalid credentials"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
-
+# ---------------------------
+# ML Analyze Endpoint
+# ---------------------------
 @csrf_exempt
 def analyze(request):
     if request.method == "POST":
-        return JsonResponse({"message": "Analyze endpoint working"})
-    return JsonResponse({"error": "Only POST allowed"})
+        try:
+            data = json.loads(request.body)
+            text = data.get("text", "")
 
+            if not text:
+                return JsonResponse({"error": "No text provided"}, status=400)
+
+            # Transform text
+            text_vectorized = vectorizer.transform([text])
+
+            # Predict
+            prediction = model.predict(text_vectorized)[0]
+            probability = model.predict_proba(text_vectorized)[0][1]
+
+            return JsonResponse({
+                "prediction": int(prediction),
+                "confidence": round(float(probability), 4)
+            })
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"message": "Use POST request"})
