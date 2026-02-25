@@ -5,59 +5,94 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-# Get current directory (api folder)
+# ---------------------------------------------------
+# Load ML Model & Vectorizer (Production Safe)
+# ---------------------------------------------------
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Load trained model and vectorizer
 model_path = os.path.join(BASE_DIR, "model.pkl")
 vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
 
-model = pickle.load(open(model_path, "rb"))
-vectorizer = pickle.load(open(vectorizer_path, "rb"))
+model = None
+vectorizer = None
+
+try:
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+
+    with open(vectorizer_path, "rb") as f:
+        vectorizer = pickle.load(f)
+
+    print("✅ Model and Vectorizer loaded successfully")
+
+except Exception as e:
+    print("❌ Model loading failed:", e)
 
 
-# ---------------------------
-# Dummy Register Endpoint
-# ---------------------------
+# ---------------------------------------------------
+# Register Endpoint (Dummy)
+# ---------------------------------------------------
+
 @csrf_exempt
 def register(request):
-    return JsonResponse({"message": "Register endpoint working"})
+    if request.method == "POST":
+        return JsonResponse({"message": "Register endpoint working"})
+    return JsonResponse({"error": "Use POST request"}, status=400)
 
 
-# ---------------------------
-# Dummy Login Endpoint
-# ---------------------------
+# ---------------------------------------------------
+# Login Endpoint (Dummy)
+# ---------------------------------------------------
+
 @csrf_exempt
 def login(request):
-    return JsonResponse({"message": "Login endpoint working"})
+    if request.method == "POST":
+        return JsonResponse({"message": "Login endpoint working"})
+    return JsonResponse({"error": "Use POST request"}, status=400)
 
 
-# ---------------------------
+# ---------------------------------------------------
 # ML Analyze Endpoint
-# ---------------------------
+# ---------------------------------------------------
+
 @csrf_exempt
 def analyze(request):
     if request.method == "POST":
         try:
+            if model is None or vectorizer is None:
+                return JsonResponse(
+                    {"error": "Model not loaded properly"},
+                    status=500
+                )
+
             data = json.loads(request.body)
-            text = data.get("text", "")
+            text = data.get("text", "").strip()
 
             if not text:
-                return JsonResponse({"error": "No text provided"}, status=400)
+                return JsonResponse(
+                    {"error": "No text provided"},
+                    status=400
+                )
 
-            # Transform text
+            # Transform input
             text_vectorized = vectorizer.transform([text])
 
             # Predict
             prediction = model.predict(text_vectorized)[0]
-            probability = model.predict_proba(text_vectorized)[0][1]
+
+            # Confidence (safe way)
+            confidence = None
+            if hasattr(model, "predict_proba"):
+                probabilities = model.predict_proba(text_vectorized)[0]
+                confidence = float(max(probabilities))
 
             return JsonResponse({
                 "prediction": int(prediction),
-                "confidence": round(float(probability), 4)
+                "confidence": round(confidence, 4) if confidence else None
             })
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({"message": "Use POST request"})
+    return JsonResponse({"error": "Use POST request"}, status=400)
