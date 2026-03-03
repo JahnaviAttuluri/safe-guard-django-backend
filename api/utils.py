@@ -1,43 +1,122 @@
+import os
 import pickle
+from django.conf import settings
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
 from .models import ScamDataset, ModelStatus
-from django.utils import timezone
 
 
+# --------------------------------------------------
+# FILE PATHS
+# --------------------------------------------------
+MODEL_PATH = os.path.join(settings.BASE_DIR, "model.pkl")
+VECTORIZER_PATH = os.path.join(settings.BASE_DIR, "vectorizer.pkl")
+
+model = None
+vectorizer = None
+
+
+# --------------------------------------------------
+# TRAIN MODEL FUNCTION
+# --------------------------------------------------
 def retrain_model():
-    data = ScamDataset.objects.all()
+    global model, vectorizer
 
-    if data.count() < 2:
+    dataset = ScamDataset.objects.all()
+
+    if dataset.count() < 2:
+        print("❌ Not enough data to train")
         return 0
 
-    texts = [d.text for d in data]
-    labels = [d.label for d in data]
+    texts = [data.text for data in dataset]
+    labels = [data.label for data in dataset]
 
+    # Vectorize
     vectorizer = TfidfVectorizer()
     X = vectorizer.fit_transform(texts)
+    y = labels
 
+    # Split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    # Train model
     model = LogisticRegression()
-    model.fit(X, labels)
+    model.fit(X_train, y_train)
 
-    predictions = model.predict(X)
-    accuracy = accuracy_score(labels, predictions)
-    accuracy_percent = round(accuracy * 100, 2)
+    # Accuracy
+    y_pred = model.predict(X_test)
+    accuracy = round(accuracy_score(y_test, y_pred) * 100, 2)
 
-    # Save model
-    with open("model.pkl", "wb") as f:
+    # Save model files
+    with open(MODEL_PATH, "wb") as f:
         pickle.dump(model, f)
 
-    with open("vectorizer.pkl", "wb") as f:
+    with open(VECTORIZER_PATH, "wb") as f:
         pickle.dump(vectorizer, f)
 
-    # Save accuracy to DB
-    status, created = ModelStatus.objects.get_or_create(id=1)
-    status.accuracy = accuracy_percent
-    status.last_trained = timezone.now()
-    status.save()
+    # Save accuracy in DB
+    ModelStatus.objects.all().delete()
+    ModelStatus.objects.create(accuracy=accuracy)
 
-    print(f"Model retrained successfully. Accuracy: {accuracy_percent}%")
+    print(f"✅ Model retrained successfully. Accuracy: {accuracy}%")
 
-    return accuracy_percent
+    return accuracy
+
+
+# --------------------------------------------------
+# LOAD MODEL (AUTO RECOVERY)
+# --------------------------------------------------
+def load_model():
+    global model, vectorizer
+
+    if os.path.exists(MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
+        try:
+            with open(MODEL_PATH, "rb") as f:
+                model = pickle.load(f)
+
+            with open(VECTORIZER_PATH, "rb") as f:
+                vectorizer = pickle.load(f)
+
+            print("✅ Model loaded successfully")
+
+        except Exception as e:
+            print("❌ Model loading failed:", e)
+            retrain_model()
+
+    else:
+        print("⚠️ Model files not found. Training new model...")
+        retrain_model()
+
+
+# --------------------------------------------------
+# PREDICT FUNCTION
+# --------------------------------------------------
+def predict_text(text):
+    global model, vectorizer
+
+    if model is None or vectorizer is None:
+        load_model()
+
+    if model is None:
+        return {"error": "Model not available"}
+
+    vectorized_text = vectorizer.transform([text])
+    prediction = model.predict(vectorized_text)[0]
+    probability = model.predict_proba(vectorized_text)[0]
+
+    confidence = round(max(probability) * 100, 2)
+
+    return {
+        "prediction": int(prediction),
+        "confidence": confidence
+    }
+
+
+# --------------------------------------------------
+# AUTO LOAD MODEL ON SERVER START
+# --------------------------------------------------
+load_model()
