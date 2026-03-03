@@ -16,8 +16,9 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "local-dev-secret-key")
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
-    os.environ.get("RENDER_EXTERNAL_HOSTNAME", "localhost"),
+    os.environ.get("RENDER_EXTERNAL_HOSTNAME"),
     "127.0.0.1",
+    "localhost",
 ]
 
 
@@ -54,10 +55,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "backend.urls"
 
-
-# --------------------------------------------------
-# TEMPLATES
-# --------------------------------------------------
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -78,16 +75,15 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 
 # --------------------------------------------------
-# DATABASE (Production + Local Support)
+# DATABASE CONFIGURATION
 # --------------------------------------------------
-
 if os.environ.get("DATABASE_URL"):
     # Production (Render PostgreSQL)
     DATABASES = {
         "default": dj_database_url.config(
             default=os.environ.get("DATABASE_URL"),
             conn_max_age=600,
-            ssl_require=True
+            ssl_require=True,
         )
     }
 else:
@@ -121,21 +117,28 @@ USE_TZ = True
 
 
 # --------------------------------------------------
-# STATIC FILES
+# STATIC FILES (Render)
 # --------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
 # --------------------------------------------------
-# DEFAULT PRIMARY KEY FIELD
+# DEFAULT PRIMARY KEY
 # --------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # --------------------------------------------------
-# CORS SETTINGS
+# CORS & CSRF SETTINGS (IMPORTANT)
 # --------------------------------------------------
-CORS_ALLOW_ALL_ORIGINS = True
+
+# Replace with your real Vercel frontend URL
+CORS_ALLOWED_ORIGINS = [
+    "https://YOUR_VERCEL_URL.vercel.app",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://YOUR_VERCEL_URL.vercel.app",
+]
