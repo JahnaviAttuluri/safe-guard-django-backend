@@ -1,15 +1,14 @@
-import os
-import pickle
-import json
-
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+import json
+import pickle
+import os
 
-# ---------------------------------------------------
-# Load ML Model & Vectorizer (Production Safe)
-# ---------------------------------------------------
+# -----------------------------------
+# Load Model + Vectorizer Safely
+# -----------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 model_path = os.path.join(BASE_DIR, "model.pkl")
 vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
@@ -24,75 +23,59 @@ try:
     with open(vectorizer_path, "rb") as f:
         vectorizer = pickle.load(f)
 
-    print("✅ Model and Vectorizer loaded successfully")
+    print("✅ Model loaded successfully")
 
 except Exception as e:
     print("❌ Model loading failed:", e)
 
 
-# ---------------------------------------------------
-# Register Endpoint (Dummy)
-# ---------------------------------------------------
+# -----------------------------------
+# EXISTING AUTH APIs (keep yours)
+# -----------------------------------
 
-@csrf_exempt
 def register(request):
-    if request.method == "POST":
-        return JsonResponse({"message": "Register endpoint working"})
-    return JsonResponse({"error": "Use POST request"}, status=400)
+    return JsonResponse({"message": "Register endpoint working"})
 
-
-# ---------------------------------------------------
-# Login Endpoint (Dummy)
-# ---------------------------------------------------
-
-@csrf_exempt
 def login(request):
-    if request.method == "POST":
-        return JsonResponse({"message": "Login endpoint working"})
-    return JsonResponse({"error": "Use POST request"}, status=400)
+    return JsonResponse({"message": "Login endpoint working"})
+
+def analyze(request):
+    return JsonResponse({"message": "Analyze endpoint working"})
 
 
-# ---------------------------------------------------
-# ML Analyze Endpoint
-# ---------------------------------------------------
+# -----------------------------------
+# 🔥 PREDICT API
+# -----------------------------------
 
 @csrf_exempt
-def analyze(request):
-    if request.method == "POST":
-        try:
-            if model is None or vectorizer is None:
-                return JsonResponse(
-                    {"error": "Model not loaded properly"},
-                    status=500
-                )
+def predict_view(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
 
-            data = json.loads(request.body)
-            text = data.get("text", "").strip()
+    if model is None or vectorizer is None:
+        return JsonResponse({"error": "Model not loaded"}, status=500)
 
-            if not text:
-                return JsonResponse(
-                    {"error": "No text provided"},
-                    status=400
-                )
+    try:
+        data = json.loads(request.body)
+        text = data.get("text", "").strip()
 
-            # Transform input
-            text_vectorized = vectorizer.transform([text])
+        if not text:
+            return JsonResponse({"error": "Text is required"}, status=400)
 
-            # Predict
-            prediction = model.predict(text_vectorized)[0]
+        transformed = vectorizer.transform([text])
+        prediction = model.predict(transformed)[0]
 
-            # Confidence (safe way)
-            confidence = None
-            if hasattr(model, "predict_proba"):
-                probabilities = model.predict_proba(text_vectorized)[0]
-                confidence = float(max(probabilities))
+        # Optional: confidence
+        confidence = None
+        if hasattr(model, "predict_proba"):
+            confidence = float(max(model.predict_proba(transformed)[0]))
 
-            return JsonResponse({
-                "prediction": int(prediction),
-                "confidence": round(confidence, 4) if confidence else None
-            })
+        result = "Fraudulent" if prediction == 1 else "Real"
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({
+            "prediction": result,
+            "confidence": confidence
+        })
 
-    return JsonResponse({"error": "Use POST request"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

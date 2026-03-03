@@ -11,12 +11,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # --------------------------------------------------
 # SECURITY SETTINGS
 # --------------------------------------------------
-SECRET_KEY = os.environ.get("SECRET_KEY")
+SECRET_KEY = os.environ.get("SECRET_KEY", "local-dev-secret-key")
 
-DEBUG = os.environ.get("DEBUG", "False") == "True"
+DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
     os.environ.get("RENDER_EXTERNAL_HOSTNAME", "localhost"),
+    "127.0.0.1",
 ]
 
 
@@ -55,7 +56,7 @@ ROOT_URLCONF = "backend.urls"
 
 
 # --------------------------------------------------
-# TEMPLATES (REQUIRED FOR ADMIN)
+# TEMPLATES
 # --------------------------------------------------
 TEMPLATES = [
     {
@@ -77,15 +78,26 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 
 # --------------------------------------------------
-# DATABASE (Render PostgreSQL)
+# DATABASE (Production + Local Support)
 # --------------------------------------------------
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=True
-    )
-}
+
+if os.environ.get("DATABASE_URL"):
+    # Production (Render PostgreSQL)
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=os.environ.get("DATABASE_URL"),
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
+else:
+    # Local Development (SQLite)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # --------------------------------------------------
@@ -109,7 +121,7 @@ USE_TZ = True
 
 
 # --------------------------------------------------
-# STATIC FILES (Render Ready)
+# STATIC FILES
 # --------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
@@ -124,6 +136,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # --------------------------------------------------
-# CORS SETTINGS (Frontend)
+# CORS SETTINGS
 # --------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = True
