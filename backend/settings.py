@@ -134,7 +134,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS & CSRF SETTINGS (IMPORTANT)
 # --------------------------------------------------
 
-# Replace with your real Vercel frontend URL
+# 🔁 Replace with your actual Vercel frontend URL
 CORS_ALLOWED_ORIGINS = [
     "https://YOUR_VERCEL_URL.vercel.app",
 ]
@@ -142,15 +142,3 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://YOUR_VERCEL_URL.vercel.app",
 ]
-# Create superuser automatically in production
-if os.environ.get("RENDER"):
-    import django
-    django.setup()
-    from django.contrib.auth.models import User
-
-    if not User.objects.filter(username="admin").exists():
-        User.objects.create_superuser(
-            username="admin",
-            email="admin@example.com",
-            password="Admin@123"
-        )
