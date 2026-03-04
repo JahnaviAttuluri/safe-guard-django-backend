@@ -16,6 +16,8 @@ class ModelStatus(models.Model):
 
     def __str__(self):
         return f"Accuracy: {self.accuracy}%"
+
+
 class DatasetUpload(models.Model):
     csv_file = models.FileField(upload_to="uploads/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
