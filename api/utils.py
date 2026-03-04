@@ -7,7 +7,6 @@ from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from .models import ScamDataset, ModelStatus
 
-
 # --------------------------------------------------
 # FILE PATHS
 # --------------------------------------------------
@@ -33,32 +32,26 @@ def retrain_model():
     texts = [data.text for data in dataset]
     labels = [data.label for data in dataset]
 
-    # Vectorize
     vectorizer = TfidfVectorizer()
     X = vectorizer.fit_transform(texts)
     y = labels
 
-    # Split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
-    # Train model
     model = LogisticRegression()
     model.fit(X_train, y_train)
 
-    # Accuracy
     y_pred = model.predict(X_test)
     accuracy = round(accuracy_score(y_test, y_pred) * 100, 2)
 
-    # Save model files
     with open(MODEL_PATH, "wb") as f:
         pickle.dump(model, f)
 
     with open(VECTORIZER_PATH, "wb") as f:
         pickle.dump(vectorizer, f)
 
-    # Save accuracy in DB
     ModelStatus.objects.all().delete()
     ModelStatus.objects.create(accuracy=accuracy)
 
@@ -68,28 +61,31 @@ def retrain_model():
 
 
 # --------------------------------------------------
-# LOAD MODEL (AUTO RECOVERY)
+# SAFE MODEL LOAD
 # --------------------------------------------------
 def load_model():
     global model, vectorizer
 
-    if os.path.exists(MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
-        try:
-            with open(MODEL_PATH, "rb") as f:
-                model = pickle.load(f)
+    if model is not None and vectorizer is not None:
+        return True
 
-            with open(VECTORIZER_PATH, "rb") as f:
-                vectorizer = pickle.load(f)
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
+        print("⚠️ Model files not found.")
+        return False
 
-            print("✅ Model loaded successfully")
+    try:
+        with open(MODEL_PATH, "rb") as f:
+            model = pickle.load(f)
 
-        except Exception as e:
-            print("❌ Model loading failed:", e)
-            retrain_model()
+        with open(VECTORIZER_PATH, "rb") as f:
+            vectorizer = pickle.load(f)
 
-    else:
-        print("⚠️ Model files not found. Training new model...")
-        retrain_model()
+        print("✅ Model loaded successfully")
+        return True
+
+    except Exception as e:
+        print("❌ Model loading failed:", e)
+        return False
 
 
 # --------------------------------------------------
@@ -98,11 +94,8 @@ def load_model():
 def predict_text(text):
     global model, vectorizer
 
-    if model is None or vectorizer is None:
-        load_model()
-
-    if model is None:
-        return {"error": "Model not available"}
+    if not load_model():
+        return {"error": "Model not trained yet"}
 
     vectorized_text = vectorizer.transform([text])
     prediction = model.predict(vectorized_text)[0]
@@ -114,9 +107,3 @@ def predict_text(text):
         "prediction": int(prediction),
         "confidence": confidence
     }
-
-
-# --------------------------------------------------
-# AUTO LOAD MODEL ON SERVER START
-# --------------------------------------------------
-load_model()
