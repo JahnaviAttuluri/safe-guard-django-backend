@@ -1,36 +1,11 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-import pickle
-import os
-
-# -----------------------------------
-# Load Model + Vectorizer Safely
-# -----------------------------------
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-model_path = os.path.join(BASE_DIR, "model.pkl")
-vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
-
-model = None
-vectorizer = None
-
-try:
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
-
-    with open(vectorizer_path, "rb") as f:
-        vectorizer = pickle.load(f)
-
-    print("✅ Model loaded successfully")
-
-except Exception as e:
-    print("❌ Model loading failed:", e)
+from .utils import predict_text
 
 
 # -----------------------------------
-# EXISTING AUTH APIs (keep yours)
+# EXISTING AUTH APIs
 # -----------------------------------
 
 def register(request):
@@ -44,16 +19,13 @@ def analyze(request):
 
 
 # -----------------------------------
-# 🔥 PREDICT API
+# PREDICT API (SAFE)
 # -----------------------------------
 
 @csrf_exempt
 def predict_view(request):
     if request.method != "POST":
         return JsonResponse({"error": "Only POST allowed"}, status=405)
-
-    if model is None or vectorizer is None:
-        return JsonResponse({"error": "Model not loaded"}, status=500)
 
     try:
         data = json.loads(request.body)
@@ -62,19 +34,16 @@ def predict_view(request):
         if not text:
             return JsonResponse({"error": "Text is required"}, status=400)
 
-        transformed = vectorizer.transform([text])
-        prediction = model.predict(transformed)[0]
+        result = predict_text(text)
 
-        # Optional: confidence
-        confidence = None
-        if hasattr(model, "predict_proba"):
-            confidence = float(max(model.predict_proba(transformed)[0]))
+        if "error" in result:
+            return JsonResponse(result, status=500)
 
-        result = "Fraudulent" if prediction == 1 else "Real"
+        label = "Fraudulent" if result["prediction"] == 1 else "Real"
 
         return JsonResponse({
-            "prediction": result,
-            "confidence": confidence
+            "prediction": label,
+            "confidence": result["confidence"]
         })
 
     except Exception as e:
